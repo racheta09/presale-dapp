@@ -7,12 +7,14 @@ body {
     padding: 0.5rem;
 }
 
-.navbar--title {
-    padding: 0.5rem;
+.link--text {
+    text-decoration: none;
+    color: white;
+    font-size: large;
 }
 
-.presale--logo {
-    width: 400px;
-    height: auto;
-    float: left;
+.link--text--mobile {
+    text-decoration: none;
+    color: black;
+    font-size: large;
 }

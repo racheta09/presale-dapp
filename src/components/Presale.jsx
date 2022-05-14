@@ -5,30 +5,27 @@ import {
     ButtonGroup,
     Container,
     Grid,
-    LinearProgress,
     Paper,
-    TextField,
-    useMediaQuery,
+    Typography,
 } from "@mui/material"
 import { useState } from "react"
 import Web3 from "web3"
 
-import bnb_logo from "../assests/bnb_logo.svg"
-import busd_logo from "../assests/busd-logo.svg"
 import MetamaskSVG from "../assests/MetamaskSVG.js"
 import BscSVG from "../assests/BscSVG.js"
-import DRCsvg from "../assests/logo.js"
 
-import DRCSeller from "../assests/json/DRCSeller.json"
+import CIPSeller from "../assests/json/CIPSeller.json"
 import ERC20 from "../assests/json/IERC20.json"
 import Aggregator from "../assests/json/AggregatorV3Interface.json"
 
+import { PresaleContent } from "./PresaleContent"
+
+let web3, cipseller, busdContract, aggregator
 export const Presale = () => {
-    const activeNetwork = 56 //97
-    let web3, drcseller, busdContract, aggregator, rate
+    const activeNetwork = 56 // 97
     const busdAddress = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
     const aggregatorAddress = "0x87Ea38c9F24264Ec1Fff41B04ec94a97Caf99941"
-    // const busdAddress ="0xE0dFffc2E01A7f051069649aD4eb3F518430B6a4" // teestnet
+    // const busdAddress = "0xE0dFffc2E01A7f051069649aD4eb3F518430B6a4" // testnet
     // const aggregatorAddress = "0x0630521aC362bc7A19a4eE44b57cE72Ea34AD01c" //testnet
 
     const [account, setAccount] = useState(0)
@@ -42,10 +39,28 @@ export const Presale = () => {
     const [txhash, setTxhash] = useState(0)
     const [error, setError] = useState(false)
     const [bnbusd, setBnbusd] = useState(0)
-    const [drcbnb, setDRCbnb] = useState(0)
-    const [drcbusd, setDRCbusd] = useState(0)
+    const [cipbnb, setCIPbnb] = useState(0)
+    const [cipbusd, setCIPbusd] = useState(0)
+    const [rate, setRate] = useState(0)
 
-    const ourMediaQuery = useMediaQuery("(min-width:800px)")
+    let presaleData = {
+        sold,
+        bnbbal,
+        busdbal,
+        error,
+        cipbnb,
+        cipbusd,
+        bnbusd,
+        bnbtext,
+        busdtext,
+        bnbChange,
+        busdChange,
+        buyCIPwithBNB,
+        buyCIPwithBUSD,
+        txhash,
+    }
+
+    // const ourMediaQuery = useMediaQuery("(min-width:800px)")
 
     async function addmetaprovider() {
         web3 = new Web3(window.ethereum)
@@ -80,15 +95,16 @@ export const Presale = () => {
             10 ** 18
         console.log(busdBalance)
         setBusdbal(busdBalance.toFixed(4))
-        drcseller = new web3.eth.Contract(
-            DRCSeller.abi,
-            DRCSeller.networks[activeNetwork].address
+        cipseller = new web3.eth.Contract(
+            CIPSeller.abi,
+            CIPSeller.networks[activeNetwork].address
         )
-        let tokensSold = await drcseller.methods.tokensSold().call()
-        setSold(parseFloat(tokensSold) * 10 ** -9)
-        let ended = await drcseller.methods.saleEnded().call()
+        let tokensSold = await cipseller.methods.tokensSold().call()
+        setSold(parseFloat(tokensSold) * 10 ** -5)
+        let ended = await cipseller.methods.saleEnded().call()
         setEnd(ended)
-        rate = await drcseller.methods.rate().call()
+        let _rate = await cipseller.methods.rate().call()
+        setRate(_rate)
         console.log(tokensSold, ended, rate)
         aggregator = new web3.eth.Contract(Aggregator.abi, aggregatorAddress)
         let bprice = await aggregator.methods.latestAnswer().call()
@@ -105,24 +121,24 @@ export const Presale = () => {
     function bnbChange(event) {
         let value = event.target.value
         setBnbtext(value)
-        setDRCbnb((value * bnbusd * rate).toFixed(4))
+        setCIPbnb((((value * bnbusd) / rate) * 100).toFixed(4))
     }
 
     function busdChange(event) {
         let value = event.target.value
         setBusdtext(value)
-        setDRCbusd((value * rate).toFixed(4))
+        setCIPbusd(((value / rate) * 100).toFixed(4))
     }
 
-    async function buyDRCwithBNB() {
+    async function buyCIPwithBNB() {
         try {
             if (bnbtext === 0) {
-                throw new Error({ message: "Cannot Buy 0 DRC" })
+                throw new Error({ message: "Cannot Buy 0 CIP" })
             }
-            let sold = await drcseller.methods.buyDRCwithBNB().send({
+            let sold = await cipseller.methods.buyCIPwithBNB().send({
                 from: account,
                 value: web3.utils.toWei(bnbtext.toString()),
-                gas: "200000",
+                gas: "300000",
                 gasPrice: "10000000000",
             })
             setError(false)
@@ -135,24 +151,24 @@ export const Presale = () => {
         }
     }
 
-    async function buyDRCwithBUSD() {
+    async function buyCIPwithBUSD() {
         try {
             if (busdtext === 0) {
-                throw new Error({ message: "Cannot Buy 0 DRC" })
+                throw new Error({ message: "Cannot Buy 0 CIP" })
             }
             let allowed = await busdContract.methods
-                .allowance(account, DRCSeller.networks[activeNetwork].address)
+                .allowance(account, CIPSeller.networks[activeNetwork].address)
                 .call()
             // console.log((web3.utils.fromWei(allowed) * 10 ** 18) >= parseInt(web3.utils.toWei(busdtext.toString())))
             if (
                 web3.utils.fromWei(allowed) * 10 ** 18 >=
                 parseInt(web3.utils.toWei(busdtext.toString()))
             ) {
-                let sold = await drcseller.methods
-                    .buyDRCwithBUSD(web3.utils.toWei(busdtext.toString()))
+                let sold = await cipseller.methods
+                    .buyCIPwithBUSD(web3.utils.toWei(busdtext.toString()))
                     .send({
                         from: account,
-                        gas: "200000",
+                        gas: "300000",
                         gasPrice: "10000000000",
                     })
                 setError(false)
@@ -162,14 +178,14 @@ export const Presale = () => {
             } else {
                 let approved = await busdContract.methods
                     .approve(
-                        DRCSeller.networks[activeNetwork].address,
+                        CIPSeller.networks[activeNetwork].address,
                         web3.utils.toWei(busdtext.toString())
                     )
                     .send({ from: account })
                 setError({ message: "BUSD Approved Successfully" })
                 setTxhash(approved["transactionHash"])
                 console.log(txhash)
-                await buyDRCwithBUSD()
+                await buyCIPwithBUSD()
             }
         } catch (error) {
             setError(error)
@@ -178,10 +194,10 @@ export const Presale = () => {
     }
 
     async function addciptoken() {
-        const tokenAddress = "0x6976f83ec3940F1DFcb7bD2011a5652b73021533"
-        const tokenSymbol = "DRC"
-        const tokenDecimals = 9
-        const tokenImage = "https://i.imgur.com/WDy7umf.png"
+        const tokenAddress = "0xc2c39AaF68f5CF8B54684338dcBA70a8365E40FA"
+        const tokenSymbol = "CIP"
+        const tokenDecimals = 5
+        const tokenImage = "https://bscscan.com/token/images/cipprotocol_32.png"
 
         try {
             // wasAdded is a boolean. Like any RPC method, an error may be thrown.
@@ -210,10 +226,15 @@ export const Presale = () => {
 
     const ConnectButtons = () => (
         <ButtonGroup
-            orientation={ourMediaQuery ? `horizontal` : `vertical`}
+            // orientation={ourMediaQuery ? `horizontal` : `vertical`}
+            orientation="vertical"
             variant="contained"
             color="primary"
             aria-label="text primary button group"
+            sx={{
+                padding: "10px",
+                margin: "10px",
+            }}
         >
             <Button onClick={addmetaprovider} startIcon={<MetamaskSVG />}>
                 Metamask
@@ -221,7 +242,12 @@ export const Presale = () => {
             <Button onClick={addbcwprovider} startIcon={<BscSVG />}>
                 Binance Chain Wallet
             </Button>
-            <Button onClick={addciptoken} startIcon={<DRCsvg />}>
+            <Button
+                onClick={addciptoken}
+                startIcon={
+                    <img src="/ciplogo.png" alt="CIP Logo" width="32px" />
+                }
+            >
                 Add CIP to Metamask
             </Button>
         </ButtonGroup>
@@ -258,170 +284,6 @@ export const Presale = () => {
         </Grid>
     )
 
-    const PresaleContent = () => (
-        <Grid
-            container
-            item
-            xl={12}
-            direction="row"
-            spacing={4}
-            justify="center"
-            alignItems="center"
-        >
-            <Paper
-                elevation={24}
-                style={{
-                    backgroundColor: "white",
-                    width: "100%",
-                    padding: "20px",
-                    margin: "20px",
-                }}
-            >
-                <Grid container direction="column" align="center">
-                    {sold >= 0 ? (
-                        <Grid item>
-                            <LinearProgress
-                                variant="determinate"
-                                value={sold / (4 * 10 ** 8)}
-                                style={{ height: "25px" }}
-                            />
-                            <h4 style={{ color: "black" }}>
-                                {(sold * 10 ** -6).toFixed(4)} Million DRC Sold
-                            </h4>
-                        </Grid>
-                    ) : (
-                        ""
-                    )}
-                    <Grid item>Current BNB/USD Price: ${bnbusd}</Grid>
-                    <Grid item>
-                        Balance: {bnbbal} BNB / {busdbal} BUSD
-                    </Grid>
-                    <Grid item>1 BUSD = 1,000,000 DRC + 30% Bonus</Grid>
-                </Grid>
-                <Grid
-                    container
-                    direction="row"
-                    spacing={4}
-                    style={{ padding: "10px" }}
-                >
-                    <Grid
-                        container
-                        item
-                        direction="column"
-                        md={6}
-                        spacing={3}
-                        justify="center"
-                        alignItems="center"
-                    >
-                        <Grid item>
-                            <img
-                                src={bnb_logo}
-                                alt="BNB"
-                                height="100"
-                                width="100"
-                            />
-                        </Grid>
-                        <Grid item>{drcbnb} DRC</Grid>
-                        <Grid item>
-                            <TextField
-                                id="outlined-number"
-                                label="BNB"
-                                type="number"
-                                variant="outlined"
-                                value={bnbtext}
-                                onChange={bnbChange}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                        <Grid item>
-                            <Button
-                                variant="contained"
-                                size="large"
-                                color="primary"
-                                onClick={buyDRCwithBNB}
-                            >
-                                Buy with BNB
-                            </Button>
-                        </Grid>
-                    </Grid>
-                    <Grid
-                        container
-                        item
-                        direction="column"
-                        md={6}
-                        spacing={3}
-                        justify="center"
-                        alignItems="center"
-                    >
-                        <Grid item>
-                            <img
-                                src={busd_logo}
-                                alt="BUSD"
-                                height="100"
-                                width="100"
-                            />
-                        </Grid>
-                        <Grid item>{drcbusd} DRC</Grid>
-                        <Grid item>
-                            <TextField
-                                id="outlined-number"
-                                label="BUSD"
-                                type="number"
-                                variant="outlined"
-                                value={busdtext}
-                                onChange={busdChange}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                        <Grid item>
-                            <Button
-                                variant="contained"
-                                size="large"
-                                color="primary"
-                                onClick={buyDRCwithBUSD}
-                            >
-                                Buy with BUSD
-                            </Button>
-                        </Grid>
-                    </Grid>
-                    <Grid
-                        container
-                        item
-                        xs={12}
-                        spacing={2}
-                        justify="center"
-                        alignItems="center"
-                    ></Grid>
-                </Grid>
-                <Grid
-                    container
-                    direction="row"
-                    alignItems="center"
-                    justify="center"
-                    spacing={5}
-                >
-                    <Grid item>
-                        {error ? (
-                            <Alert severity="error">{error["message"]}</Alert>
-                        ) : txhash !== 0 ? (
-                            <Alert severity="success">
-                                Bought DRC Successfully,{" "}
-                                <a
-                                    href={"https://bscscan.com/tx/" + txhash}
-                                    rel="noreferrer"
-                                    target="_blank"
-                                >
-                                    check here
-                                </a>
-                            </Alert>
-                        ) : (
-                            ""
-                        )}
-                    </Grid>
-                </Grid>
-            </Paper>
-        </Grid>
-    )
     return (
         <main>
             <Paper
@@ -429,7 +291,7 @@ export const Presale = () => {
                     padding: "1rem",
                     margin: "1rem",
                     borderRadius: "0.5rem",
-                    backgroundColor: "rgba(12,12,12,0.1)",
+                    backgroundColor: "rgba(12,12,12,0.5)",
                     textAlign: "center",
                     color: "white",
                     fontSize: "1.5rem",
@@ -439,28 +301,43 @@ export const Presale = () => {
                     boxShadow: "0px 0px 10px rgba(238,45,15,0.1)",
                 }}
             >
-                <h1>Presale</h1>
+                <h1>Private Sale</h1>
                 <Grid
                     container
                     spacing={3}
                     justifyContent="space-evenly"
                     alignItems="center"
                 >
-                    <Grid item>
-                        <img
-                            src="/ciplogo.png"
-                            alt="ciplogo"
-                            className="presale--logo"
-                        />
+                    <Grid
+                        item
+                        sm={12}
+                        lg={6}
+                        sx={{
+                            padding: "20px",
+                        }}
+                    >
+                        <img src="/ciplogo.png" alt="ciplogo" width="300px" />
+                        <Typography variant="h4">Round 1 (Live)</Typography>
+                        <Typography variant="h5">
+                            10,000 CIP @ 2$/CIP
+                        </Typography>
+                        <Typography variant="h4">Round 2</Typography>
+                        <Typography variant="h5">
+                            10,000 CIP @ 2.25$/CIP
+                        </Typography>
+                        <Typography variant="h4">Round 3</Typography>
+                        <Typography variant="h5">
+                            10,000 CIP @ 2.50$/CIP
+                        </Typography>
                     </Grid>
-                    <Grid item>
+                    <Grid item sm={12} lg={6}>
                         {window.ethereum || window.BinanceChain ? (
                             end ? (
                                 <PresaleEnd />
                             ) : chainID !== activeNetwork && chainID !== 0 ? (
                                 <NotSupportedNetwork />
                             ) : account ? (
-                                <PresaleContent />
+                                <PresaleContent {...presaleData} />
                             ) : (
                                 <ConnectButtons />
                             )
