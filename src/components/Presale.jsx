@@ -1,6 +1,7 @@
 import {
     Alert,
     AlertTitle,
+    Box,
     Button,
     ButtonGroup,
     Container,
@@ -344,6 +345,7 @@ export const Presale = () => {
                         ) : (
                             <NoMetamask />
                         )}
+                        <Box mt={3}>Contract Address to add to the wallet <br /> <code>0xc2c39AaF68f5CF8B54684338dcBA70a8365E40FA</code></Box>
                     </Grid>
                 </Grid>
             </Paper>
